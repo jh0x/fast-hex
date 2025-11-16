@@ -1,0 +1,37 @@
+#pragma once
+
+#include <cstddef>
+#include <cstdint>
+
+#include "fast-hex/fast-hex_export.hpp"
+
+#if defined(_MSC_VER)
+#    define FAST_HEX_RESTRICT __restrict // The C99 keyword, available as a C++ extension
+#else
+#    define FAST_HEX_RESTRICT __restrict__
+#endif
+
+// Decoders
+// Decode src hex string into dest bytes
+
+// Scalar look-up table version. len is number of dest bytes (1/2 the size of src).
+FAST_HEX_EXPORT void decodeHexLUT(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len);
+
+// Optimized scalar look-up table version (avoids a shift). len is number of dest bytes (1/2 the size of src).
+FAST_HEX_EXPORT void decodeHexLUT4(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len);
+
+#if defined(__AVX2__)
+// Optimal AVX2 vectorized version. len is number of dest bytes (1/2 the size of src).
+FAST_HEX_EXPORT void decodeHexVec(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len);
+#endif // defined(__AVX2__)
+
+// Encoders
+// Encode src bytes into dest hex string
+
+// Scalar version. len is number of src bytes. dest must be twice the size of src.
+FAST_HEX_EXPORT void encodeHex(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len);
+
+#if defined(__AVX2__)
+// AVX2 vectorized version. len is number of src bytes. dest must be twice the size of src.
+FAST_HEX_EXPORT void encodeHexVec(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len);
+#endif // defined(__AVX2__)
