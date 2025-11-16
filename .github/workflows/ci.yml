@@ -109,11 +109,20 @@ jobs:
 
         type: [shared, static]
 
+        compiler: [gcc, clang-18, clang-19, clang-20]
+
         include:
         - { type: shared, shared: YES }
         - { type: static, shared: NO }
+        - { compiler: gcc, cc: gcc, cxx: g++ }
+        - { compiler: clang-18, cc: clang-18, cxx: clang++-18 }
+        - { compiler: clang-19, cc: clang-19, cxx: clang++-19 }
+        - { compiler: clang-20, cc: clang-20, cxx: clang++-20 }
 
     runs-on: ${{ matrix.os }}
+
+    env:
+      CXX: ${{ matrix.cxx }}
 
     steps:
     - uses: actions/checkout@v4
@@ -123,11 +132,7 @@ jobs:
     - name: Install static analyzers
       if: matrix.os == 'ubuntu-latest'
       run: >-
-        sudo apt-get install build-essential cmake git clang-tidy-18 cppcheck -y -q
-
-        sudo update-alternatives --install
-        /usr/bin/clang-tidy clang-tidy
-        /usr/bin/clang-tidy-18 180
+        sudo apt-get install build-essential cmake git clang-18 clang-19 clang-20 clang-tidy-18 clang-tidy-19 clang-tidy-20 cppcheck -y -q
 
     - name: Setup MultiToolTask
       if: matrix.os == 'windows-2022'
@@ -139,6 +144,8 @@ jobs:
       shell: pwsh
       run: cmake "--preset=ci-$("${{ matrix.os }}".split("-")[0])"
         -D BUILD_SHARED_LIBS=${{ matrix.shared }}
+        -D CMAKE_C_COMPILER=${{ matrix.cc }}
+        -D CMAKE_CXX_COMPILER=${{ matrix.cxx }}
 
     - name: Setup PATH
       if: matrix.os == 'windows-2022' && matrix.type == 'shared'
