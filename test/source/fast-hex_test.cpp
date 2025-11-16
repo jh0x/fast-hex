@@ -206,6 +206,25 @@ void testHexEncoding()
     }
 }
 
+template <auto DecodingFunc>
+void testHexDecoding()
+{
+    for (size_t i = 0; i < sizeof(raw_data) / sizeof(raw_data[0]); ++i)
+    {
+        const auto & hex_str = encoded_data[i];
+        const auto & expected = raw_data[i];
+
+        std::string output;
+        output.resize(hex_str.size() / 2);
+
+        DecodingFunc(reinterpret_cast<uint8_t *>(output.data()), reinterpret_cast<const uint8_t *>(hex_str.data()), output.size());
+
+        CAPTURE(i);
+        CAPTURE(hex_str);
+        REQUIRE(output == expected);
+    }
+}
+
 TEST_CASE("encodeHex")
 {
     testHexEncoding<encodeHex>();
@@ -216,4 +235,18 @@ TEST_CASE("encodeHexVec")
 {
     testHexEncoding<encodeHexVec>();
 }
+TEST_CASE("decodeHexVec_valid")
+{
+    testHexDecoding<decodeHexVec>();
+}
 #endif
+
+TEST_CASE("decodeHexLUT_valid")
+{
+    testHexDecoding<decodeHexLUT>();
+}
+
+TEST_CASE("decodeHexLUT4_valid")
+{
+    testHexDecoding<decodeHexLUT4>();
+}
