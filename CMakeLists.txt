@@ -55,6 +55,11 @@ target_include_directories(
 
 target_compile_features(fast-hex_fast-hex PUBLIC cxx_std_17)
 
+# ---- AVX Support ----
+
+include(cmake/avx_support.cmake)
+fast_hex_target_enable_avx(fast-hex_fast-hex)
+
 # ---- Install rules ----
 
 if(NOT CMAKE_SKIP_INSTALL_RULES)

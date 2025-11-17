@@ -29,6 +29,10 @@ add_executable(
 target_link_libraries(fast-hex_test PRIVATE fast-hex::fast-hex doctest)
 target_compile_features(fast-hex_test PRIVATE cxx_std_17)
 
+# ---- AVX Support ----
+include(../cmake/avx_support.cmake)
+fast_hex_target_enable_avx(fast-hex_test)
+
 add_test(NAME fast-hex_test COMMAND fast-hex_test)
 
 # ---- End-of-file commands ----
