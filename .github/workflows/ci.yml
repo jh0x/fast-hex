@@ -72,23 +72,43 @@ jobs:
   sanitize:
     needs: [lint]
 
+    strategy:
+      matrix:
+        compiler: [gcc, clang-18, clang-19, clang-20]
+        build_type: [Debug, Release]
+        include:
+        - { compiler: gcc, cc: gcc, cxx: g++ }
+        - { compiler: clang-18, cc: clang-18, cxx: clang++-18 }
+        - { compiler: clang-19, cc: clang-19, cxx: clang++-19 }
+        - { compiler: clang-20, cc: clang-20, cxx: clang++-20 }
+
     runs-on: ubuntu-latest
 
-    env: { CXX: clang++-18 }
+    env:
+      CXX: ${{ matrix.cxx }}
 
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: recursive
 
+    - name: Install static analyzers
+      run: >-
+        sudo apt-get install build-essential cmake git clang-18 clang-19 clang-20 cppcheck -y -q
+
     - name: Configure
-      run: cmake --preset=ci-sanitize
+      shell: pwsh
+      run: cmake --preset=ci-ubuntu
+        -D CMAKE_C_COMPILER=${{ matrix.cc }}
+        -D CMAKE_CXX_COMPILER=${{ matrix.cxx }}
+        -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
+        -D ENABLE_SANITIZERS=ON
 
     - name: Build
-      run: cmake --build build/sanitize -j 2
+      run: cmake --build build -j 2
 
     - name: Test
-      working-directory: build/sanitize
+      working-directory: build
       env:
         ASAN_OPTIONS: "strict_string_checks=1:\
           detect_stack_use_after_return=1:\
@@ -110,6 +130,8 @@ jobs:
         type: [shared, static]
 
         compiler: [gcc, clang-18, clang-19, clang-20]
+
+        build_type: [Debug, Release]
 
         include:
         - { type: shared, shared: YES }
@@ -146,20 +168,21 @@ jobs:
         -D BUILD_SHARED_LIBS=${{ matrix.shared }}
         -D CMAKE_C_COMPILER=${{ matrix.cc }}
         -D CMAKE_CXX_COMPILER=${{ matrix.cxx }}
+        -D CMAKE_BUILD_TYPE=${{ matrix.build_type }}
 
     - name: Setup PATH
       if: matrix.os == 'windows-2022' && matrix.type == 'shared'
       run: Add-Content "$env:GITHUB_PATH" "$(Get-Location)\build\Release"
 
     - name: Build
-      run: cmake --build build --config Release -j 2
+      run: cmake --build build --config ${{ matrix.build_type }} -j 2
 
     - name: Install
-      run: cmake --install build --config Release --prefix prefix
+      run: cmake --install build --config ${{ matrix.build_type }} --prefix prefix
 
     - name: Test
       working-directory: build
-      run: ctest --output-on-failure --no-tests=error -C Release -j 2
+      run: ctest --output-on-failure --no-tests=error -C ${{ matrix.build_type }} -j 2
 
   docs:
     # Deploy docs only when builds succeed
