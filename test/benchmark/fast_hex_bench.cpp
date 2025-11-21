@@ -19,7 +19,7 @@ std::vector<uint8_t> createHexData(size_t binarySize)
 {
     auto binary = createBinaryData(binarySize);
     std::vector<uint8_t> hex(binarySize * 2);
-    encodeHex(hex.data(), binary.data(), binarySize);
+    encodeHexLower(hex.data(), binary.data(), binarySize);
     return hex;
 }
 
@@ -53,20 +53,20 @@ std::vector<uint8_t> createHexData(size_t binarySize)
 
 // ---- Encoding Benchmarks ----
 
-DEFINE_ENCODE_BENCHMARK(encodeHex, 8, 8B)
-DEFINE_ENCODE_BENCHMARK(encodeHex, 16, 16B)
-DEFINE_ENCODE_BENCHMARK(encodeHex, 32, 32B)
-DEFINE_ENCODE_BENCHMARK(encodeHex, 64, 64B)
-DEFINE_ENCODE_BENCHMARK(encodeHex, 1024, 1KB)
-DEFINE_ENCODE_BENCHMARK(encodeHex, 1024 * 1024, 1MB)
+DEFINE_ENCODE_BENCHMARK(encodeHexLower, 8, 8B)
+DEFINE_ENCODE_BENCHMARK(encodeHexLower, 16, 16B)
+DEFINE_ENCODE_BENCHMARK(encodeHexLower, 32, 32B)
+DEFINE_ENCODE_BENCHMARK(encodeHexLower, 64, 64B)
+DEFINE_ENCODE_BENCHMARK(encodeHexLower, 1024, 1KB)
+DEFINE_ENCODE_BENCHMARK(encodeHexLower, 1024 * 1024, 1MB)
 
 #if defined(__AVX2__)
-DEFINE_ENCODE_BENCHMARK(encodeHexVec, 8, 8B)
-DEFINE_ENCODE_BENCHMARK(encodeHexVec, 16, 16B)
-DEFINE_ENCODE_BENCHMARK(encodeHexVec, 32, 32B)
-DEFINE_ENCODE_BENCHMARK(encodeHexVec, 64, 64B)
-DEFINE_ENCODE_BENCHMARK(encodeHexVec, 1024, 1KB)
-DEFINE_ENCODE_BENCHMARK(encodeHexVec, 1024 * 1024, 1MB)
+DEFINE_ENCODE_BENCHMARK(encodeHexLowerVec, 8, 8B)
+DEFINE_ENCODE_BENCHMARK(encodeHexLowerVec, 16, 16B)
+DEFINE_ENCODE_BENCHMARK(encodeHexLowerVec, 32, 32B)
+DEFINE_ENCODE_BENCHMARK(encodeHexLowerVec, 64, 64B)
+DEFINE_ENCODE_BENCHMARK(encodeHexLowerVec, 1024, 1KB)
+DEFINE_ENCODE_BENCHMARK(encodeHexLowerVec, 1024 * 1024, 1MB)
 #endif // defined(__AVX2__)
 
 // ---- Decoding Benchmarks ----

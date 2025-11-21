@@ -18,7 +18,16 @@
 #    include <intrin.h>
 #endif
 
+// This implementation is by https://github.com/zbjornson/fast-hex
+// Only introduced some minor modernisations and style changes.
+
 using namespace std::literals::string_view_literals;
+
+enum class HexCase
+{
+    Lower,
+    Upper
+};
 
 // clang-format off
 // ASCII -> hex value as a string_view
@@ -147,11 +156,18 @@ inline static __m256i unhexBitManip(const __m256i value)
 }
 
 // clang-format off
-static const __m256i HEX_LUTR = _mm256_setr_epi8('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
+static const __m256i HEX_LUTR_LOWER = _mm256_setr_epi8('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f','0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
+static const __m256i HEX_LUTR_UPPER = _mm256_setr_epi8('0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F','0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F');
 // clang-format on
+template <HexCase H>
 inline static __m256i hex(__m256i value)
 {
-    return _mm256_shuffle_epi8(HEX_LUTR, value);
+    if constexpr (H == HexCase::Lower)
+        return _mm256_shuffle_epi8(HEX_LUTR_LOWER, value);
+    else if constexpr (H == HexCase::Upper)
+        return _mm256_shuffle_epi8(HEX_LUTR_UPPER, value);
+    else
+        []() { static_assert(H != H, "Unsupported HexCase"); }();
 }
 
 // (a << 4) | b;
@@ -262,32 +278,51 @@ void decodeHexLUT4(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RE
 
 // clang-format off
 // Hex character lookup as a string_view
-static constexpr std::string_view hex_table_sv = "0123456789abcdef";
+static constexpr std::string_view hex_table_lower_sv = "0123456789abcdef"sv;
+static constexpr std::string_view hex_table_upper_sv = "0123456789ABCDEF"sv;
 // clang-format on
 
-static_assert(hex_table_sv.size() == 16, "hex_table_sv must have 16 elements");
+static_assert(hex_table_lower_sv.size() == 16, "hex_table_lower_sv must have 16 elements");
+static_assert(hex_table_upper_sv.size() == 16, "hex_table_upper_sv must have 16 elements");
 
+template <HexCase H>
 inline static constexpr char hex(uint8_t value)
 {
-    return hex_table_sv[value & 0xF];
+    if constexpr (H == HexCase::Lower)
+        return hex_table_lower_sv[value & 0xF];
+    else if constexpr (H == HexCase::Upper)
+        return hex_table_upper_sv[value & 0xF];
+    else
+        []() { static_assert(H != H, "Unsupported HexCase"); }();
 }
 
 // len is number of src bytes
-void encodeHex(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len)
+template <HexCase H>
+void encodeHexImpl(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len)
 {
     for (size_t i = 0; i < len; i++)
     {
         uint8_t a = src[i];
         uint8_t lo = a & 0b1111;
         uint8_t hi = a >> 4;
-        *dest++ = static_cast<uint8_t>(hex(hi));
-        *dest++ = static_cast<uint8_t>(hex(lo));
+        *dest++ = static_cast<uint8_t>(hex<H>(hi));
+        *dest++ = static_cast<uint8_t>(hex<H>(lo));
     }
+}
+
+void encodeHexLower(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len)
+{
+    encodeHexImpl<HexCase::Lower>(dest, src, len);
+}
+void encodeHexUpper(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len)
+{
+    encodeHexImpl<HexCase::Upper>(dest, src, len);
 }
 
 #if defined(__AVX2__)
 // len is number of src bytes
-void encodeHexVec(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len)
+template <HexCase H>
+void encodeHexVecImpl(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len)
 {
     const __m128i * input128 = reinterpret_cast<const __m128i *>(src);
     __m256i * output256 = reinterpret_cast<__m256i *>(dest);
@@ -298,10 +333,20 @@ void encodeHexVec(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RES
     {
         __m128i av = _mm_lddqu_si128(&input128[i]);
         __m256i nibs = byte2nib(av);
-        __m256i hexed = hex(nibs);
+        __m256i hexed = hex<H>(nibs);
         _mm256_storeu_si256(&output256[i], hexed);
     }
 
-    encodeHex(dest + (vectLen << 5), src + (vectLen << 4), tailLen);
+    encodeHexImpl<H>(dest + (vectLen << 5), src + (vectLen << 4), tailLen);
 }
+
+void encodeHexLowerVec(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len)
+{
+    encodeHexVecImpl<HexCase::Lower>(dest, src, len);
+}
+void encodeHexUpperVec(uint8_t * FAST_HEX_RESTRICT dest, const uint8_t * FAST_HEX_RESTRICT src, size_t len)
+{
+    encodeHexVecImpl<HexCase::Upper>(dest, src, len);
+}
+
 #endif // defined(__AVX2__)

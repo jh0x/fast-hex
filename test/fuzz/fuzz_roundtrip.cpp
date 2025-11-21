@@ -19,10 +19,10 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t * Data, size_t Size)
         assert(std::memcmp(Data, decoded.data(), decoded_size) == 0);
     };
 
-    auto test_encode_scalar = [&]()
+    auto test_encode_scalar = [&](auto encode_func)
     {
         std::vector<uint8_t> encoded(encoded_size);
-        encodeHex(encoded.data(), Data, Size);
+        encode_func(encoded.data(), Data, Size);
 
         decode(encoded, decodeHexLUT);
         decode(encoded, decodeHexLUT4);
@@ -32,20 +32,22 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t * Data, size_t Size)
     };
 
 #if defined(__AVX2__)
-    auto test_encode_vec = [&]()
+    auto test_encode_vec = [&](auto encode_func)
     {
         std::vector<uint8_t> encoded(encoded_size);
 
-        encodeHexVec(encoded.data(), Data, Size);
+        encode_func(encoded.data(), Data, Size);
         decode(encoded, decodeHexLUT);
         decode(encoded, decodeHexLUT4);
         decode(encoded, decodeHexVec);
     };
 #endif
 
-    test_encode_scalar();
+    test_encode_scalar(encodeHexLower);
+    test_encode_scalar(encodeHexUpper);
 #if defined(__AVX2__)
-    test_encode_vec();
+    test_encode_vec(encodeHexLowerVec);
+    test_encode_vec(encodeHexUpperVec);
 #endif
 
     return 0;

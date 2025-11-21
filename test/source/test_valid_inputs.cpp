@@ -188,21 +188,36 @@ constexpr std::string_view encoded_data[] = {
     "5465737431323334353637383941424344454630"sv,
     "1415161718191a1b1c1d1e1f2021222324252627"sv};
 
-template <auto EncodingFunc>
+template <auto EncodingFuncLower, auto EncodingFuncUpper>
 void testHexEncoding()
 {
     for (size_t i = 0; i < sizeof(raw_data) / sizeof(raw_data[0]); ++i)
     {
         const auto & raw_str = raw_data[i];
-        const auto & expected = encoded_data[i];
+        const auto & expected_lower = encoded_data[i];
+        const auto expected_upper = [&]()
+        {
+            auto upper_str = std::string(expected_lower);
+            for (auto & ch : upper_str)
+            {
+                ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+            }
+            return upper_str;
+        }();
 
-        std::string output;
-        output.resize(raw_str.size() * 2);
+        std::string output_lower;
+        std::string output_upper;
+        output_lower.resize(raw_str.size() * 2);
+        output_upper.resize(raw_str.size() * 2);
 
-        EncodingFunc(reinterpret_cast<uint8_t *>(output.data()), reinterpret_cast<const uint8_t *>(raw_str.data()), raw_str.size());
+        EncodingFuncLower(
+            reinterpret_cast<uint8_t *>(output_lower.data()), reinterpret_cast<const uint8_t *>(raw_str.data()), raw_str.size());
+        EncodingFuncUpper(
+            reinterpret_cast<uint8_t *>(output_upper.data()), reinterpret_cast<const uint8_t *>(raw_str.data()), raw_str.size());
 
         CAPTURE(i);
-        REQUIRE(output == expected);
+        REQUIRE(output_lower == expected_lower);
+        REQUIRE(output_upper == expected_upper);
     }
 }
 
@@ -211,29 +226,49 @@ void testHexDecoding()
 {
     for (size_t i = 0; i < sizeof(raw_data) / sizeof(raw_data[0]); ++i)
     {
-        const auto & hex_str = encoded_data[i];
+        const auto & hex_str_lower = encoded_data[i];
+        const auto hex_str_upper = [&]()
+        {
+            auto upper_str = std::string(hex_str_lower);
+            for (auto & ch : upper_str)
+            {
+                ch = static_cast<char>(std::toupper(static_cast<unsigned char>(ch)));
+            }
+            return upper_str;
+        }();
         const auto & expected = raw_data[i];
 
-        std::string output;
-        output.resize(hex_str.size() / 2);
+        std::string output_from_lower;
+        std::string output_from_upper;
+        output_from_lower.resize(hex_str_lower.size() / 2);
+        output_from_upper.resize(hex_str_upper.size() / 2);
 
-        DecodingFunc(reinterpret_cast<uint8_t *>(output.data()), reinterpret_cast<const uint8_t *>(hex_str.data()), output.size());
+        DecodingFunc(
+            reinterpret_cast<uint8_t *>(output_from_lower.data()),
+            reinterpret_cast<const uint8_t *>(hex_str_lower.data()),
+            output_from_lower.size());
+        DecodingFunc(
+            reinterpret_cast<uint8_t *>(output_from_upper.data()),
+            reinterpret_cast<const uint8_t *>(hex_str_upper.data()),
+            output_from_upper.size());
 
         CAPTURE(i);
-        CAPTURE(hex_str);
-        REQUIRE(output == expected);
+        CAPTURE(hex_str_lower);
+        CAPTURE(hex_str_upper);
+        REQUIRE(output_from_lower == expected);
+        REQUIRE(output_from_upper == expected);
     }
 }
 
 TEST_CASE("encodeHex")
 {
-    testHexEncoding<encodeHex>();
+    testHexEncoding<encodeHexLower, encodeHexUpper>();
 }
 
 #if defined(__AVX2__)
 TEST_CASE("encodeHexVec")
 {
-    testHexEncoding<encodeHexVec>();
+    testHexEncoding<encodeHexLowerVec, encodeHexUpperVec>();
 }
 TEST_CASE("decodeHexVec_valid")
 {
